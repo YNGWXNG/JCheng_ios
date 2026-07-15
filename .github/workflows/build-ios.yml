@@ -26,33 +26,15 @@ jobs:
 
       - name: Build IPA with automatic signing
         run: |
-          flet build ios --bundle-id com.yourcompany.jiuchengerp
-
-          cd build/ios/iphoneos
-
-          xcodebuild -workspace Runner.xcworkspace \
-            -scheme Runner \
-            -configuration Release \
-            -archivePath ./Runner.xcarchive \
-            -allowProvisioningUpdates \
-            -allowProvisioningDeviceRegistration \
-            archive
-
-          xcodebuild -exportArchive \
-            -archivePath ./Runner.xcarchive \
-            -exportOptionsPlist <(echo '{"method":"development","teamID":"","signingStyle":"automatic"}') \
-            -exportPath ./ \
-            -allowProvisioningUpdates
-
-          mkdir -p ../../ipa
-          mv ./Runner.ipa ../../ipa/
-
+          flet build ipa --bundle-id com.yourcompany.jiuchengerp --codesign
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          # 让 flutter build 内部调用 xcodebuild 时自动更新 provisioning profile
+          FLUTTER_BUILD_ARGS: "-allowProvisioningUpdates"
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
         with:
-          name: JCheng-app
+          name: ios-app
           path: build/ipa/*.ipa
