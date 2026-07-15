@@ -26,12 +26,11 @@ jobs:
 
       - name: Build IPA with automatic signing
         run: |
-          flet build ipa --bundle-id com.yourcompany.jiuchengerp --codesign
+          flet build ipa --bundle-id com.yourcompany.jiuchengerp --ios-export-method development
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
-          # 让 flutter build 内部调用 xcodebuild 时自动更新 provisioning profile
-          FLUTTER_BUILD_ARGS: "-allowProvisioningUpdates"
+          FLUTTER_BUILD_ARGS: "-allowProvisioningUpdates -allowProvisioningDeviceRegistration"
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
