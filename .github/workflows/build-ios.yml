@@ -32,8 +32,23 @@ jobs:
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
           FLUTTER_BUILD_ARGS: "-allowProvisioningUpdates -allowProvisioningDeviceRegistration"
 
+      - name: Locate IPA file
+        id: locate
+        run: |
+          # 递归查找所有 .ipa 文件
+          IPA_PATH=$(find . -name "*.ipa" -type f | head -n 1)
+          if [ -z "$IPA_PATH" ]; then
+            echo "No IPA file found!"
+            # 打印构建目录结构以便调试
+            echo "Build directory contents:"
+            ls -R build/
+            exit 1
+          fi
+          echo "Found IPA at: $IPA_PATH"
+          echo "ipa_path=$IPA_PATH" >> $GITHUB_OUTPUT
+
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
         with:
           name: ios-app
-          path: build/ipa/*.ipa
+          path: ${{ steps.locate.outputs.ipa_path }}
