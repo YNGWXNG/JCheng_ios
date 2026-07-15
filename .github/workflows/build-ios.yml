@@ -26,7 +26,7 @@ jobs:
 
       - name: Build IPA with automatic signing
         run: |
-          flet build ipa --bundle-id com.yourcompany.jiuchengerp --ios-export-method development
+          flet build ipa --bundle-id com.yourcompany.jiuchengerp --ios-export-method development --yes
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
