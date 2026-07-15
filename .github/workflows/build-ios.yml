@@ -1,0 +1,58 @@
+name: Build iOS IPA (Auto-sign)
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install flet
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Build IPA with automatic signing
+        run: |
+          flet build ios --bundle-id com.yourcompany.jiuchengerp
+
+          cd build/ios/iphoneos
+
+          xcodebuild -workspace Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -archivePath ./Runner.xcarchive \
+            -allowProvisioningUpdates \
+            -allowProvisioningDeviceRegistration \
+            archive
+
+          xcodebuild -exportArchive \
+            -archivePath ./Runner.xcarchive \
+            -exportOptionsPlist <(echo '{"method":"development","teamID":"","signingStyle":"automatic"}') \
+            -exportPath ./ \
+            -allowProvisioningUpdates
+
+          mkdir -p ../../ipa
+          mv ./Runner.ipa ../../ipa/
+
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: JCheng-app
+          path: build/ipa/*.ipa
