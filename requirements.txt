@@ -1,0 +1,7 @@
+flet
+mysql-connector-python
+Pillow
+reportlab
+numpy
+requests
+appdirs

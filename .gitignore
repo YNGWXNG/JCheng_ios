@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+build/
+dist/
+*.egg-info/
+.idea/
+.vscode/
+*.log
+server_config.json
+订单_*.pdf
+*.db
+*.sqlite3

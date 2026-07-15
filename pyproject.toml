@@ -1,0 +1,4 @@
+[tool.flet.ios.info]
+NSCameraUsageDescription = "玖诚电器ERP需要访问您的相机，用于扫描商品条码和二维码。"
+NSPhotoLibraryUsageDescription = "玖诚电器ERP需要访问您的相册，用于上传产品照片和送货凭证。"
+NSMicrophoneUsageDescription = "玖诚电器ERP需要访问您的麦克风，用于视频录制。"
