@@ -24,48 +24,63 @@ jobs:
           pip install flet
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-      - name: Build IPA with automatic signing and fallback export
+      - name: Build and export IPA
         id: build
         run: |
-          # 第一步：使用 flet build ipa 构建（生成 .xcarchive）
+          set -e
+
+          # 1. 使用 flet build ipa 构建（它会产生 .xcarchive，即使导出失败也无妨）
+          # 我们忽略它的退出码，因为我们要手动导出
           flet build ipa \
             --bundle-id com.yourcompany.jiuchengerp \
             --ios-export-method development \
-            --yes \
-            --flutter-build-args "-allowProvisioningUpdates -allowProvisioningDeviceRegistration"
+            --yes || true
 
-          # 第二步：检查是否已经生成 IPA
-          IPA_PATH=$(find build -name "*.ipa" | head -n 1)
-          if [ -z "$IPA_PATH" ]; then
-            echo "No IPA found, attempting to export from xcarchive..."
-            # 查找生成的 .xcarchive
-            ARCHIVE=$(find build -name "*.xcarchive" | head -n 1)
-            if [ -n "$ARCHIVE" ]; then
-              # 手动导出 IPA
-              xcodebuild -exportArchive \
-                -archivePath "$ARCHIVE" \
-                -exportPath build/ipa \
-                -exportOptionsPlist <(echo '{"method":"development","teamID":"","signingStyle":"automatic"}') \
-                -allowProvisioningUpdates \
-                -allowProvisioningDeviceRegistration
-              # 重新查找 IPA
-              IPA_PATH=$(find build -name "*.ipa" | head -n 1)
-            fi
-          fi
-
-          if [ -z "$IPA_PATH" ]; then
-            echo "❌ No IPA generated after fallback export"
+          # 2. 查找生成的 .xcarchive
+          ARCHIVE=$(find build -name "*.xcarchive" | head -n 1)
+          if [ -z "$ARCHIVE" ]; then
+            echo "❌ No .xcarchive found. Aborting."
             exit 1
           fi
+          echo "✅ Found .xcarchive at: $ARCHIVE"
 
-          echo "✅ Found IPA at: $IPA_PATH"
+          # 3. 准备导出选项（自动签名）
+          cat > exportOptions.plist <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>method</key>
+              <string>development</string>
+              <key>signingStyle</key>
+              <string>automatic</string>
+              <key>teamID</key>
+              <string></string>
+          </dict>
+          </plist>
+          EOF
+
+          # 4. 手动导出 IPA（允许自动更新 Provisioning Profile）
+          mkdir -p build/ipa
+          xcodebuild -exportArchive \
+            -archivePath "$ARCHIVE" \
+            -exportPath build/ipa \
+            -exportOptionsPlist exportOptions.plist \
+            -allowProvisioningUpdates \
+            -allowProvisioningDeviceRegistration
+
+          # 5. 验证 IPA 是否生成
+          IPA_PATH=$(find build/ipa -name "*.ipa" | head -n 1)
+          if [ -z "$IPA_PATH" ]; then
+            echo "❌ No .ipa generated after manual export."
+            exit 1
+          fi
+          echo "✅ Successfully generated IPA: $IPA_PATH"
           echo "ipa_path=$IPA_PATH" >> $GITHUB_OUTPUT
 
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
-          # 可选：如果知道 Team ID，可以设置并取消注释下面一行
-          # TEAM_ID: ${{ secrets.TEAM_ID }}
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
