@@ -24,31 +24,51 @@ jobs:
           pip install flet
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-      - name: Build IPA with automatic signing
+      - name: Build IPA with automatic signing and fallback export
+        id: build
         run: |
-          flet build ipa --bundle-id com.yourcompany.jiuchengerp --ios-export-method development --yes
+          # 第一步：使用 flet build ipa 构建（生成 .xcarchive）
+          flet build ipa \
+            --bundle-id com.yourcompany.jiuchengerp \
+            --ios-export-method development \
+            --yes \
+            --flutter-build-args "-allowProvisioningUpdates -allowProvisioningDeviceRegistration"
+
+          # 第二步：检查是否已经生成 IPA
+          IPA_PATH=$(find build -name "*.ipa" | head -n 1)
+          if [ -z "$IPA_PATH" ]; then
+            echo "No IPA found, attempting to export from xcarchive..."
+            # 查找生成的 .xcarchive
+            ARCHIVE=$(find build -name "*.xcarchive" | head -n 1)
+            if [ -n "$ARCHIVE" ]; then
+              # 手动导出 IPA
+              xcodebuild -exportArchive \
+                -archivePath "$ARCHIVE" \
+                -exportPath build/ipa \
+                -exportOptionsPlist <(echo '{"method":"development","teamID":"","signingStyle":"automatic"}') \
+                -allowProvisioningUpdates \
+                -allowProvisioningDeviceRegistration
+              # 重新查找 IPA
+              IPA_PATH=$(find build -name "*.ipa" | head -n 1)
+            fi
+          fi
+
+          if [ -z "$IPA_PATH" ]; then
+            echo "❌ No IPA generated after fallback export"
+            exit 1
+          fi
+
+          echo "✅ Found IPA at: $IPA_PATH"
+          echo "ipa_path=$IPA_PATH" >> $GITHUB_OUTPUT
+
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
-          FLUTTER_BUILD_ARGS: "-allowProvisioningUpdates -allowProvisioningDeviceRegistration"
-
-      - name: Locate IPA file
-        id: locate
-        run: |
-          # 递归查找所有 .ipa 文件
-          IPA_PATH=$(find . -name "*.ipa" -type f | head -n 1)
-          if [ -z "$IPA_PATH" ]; then
-            echo "No IPA file found!"
-            # 打印构建目录结构以便调试
-            echo "Build directory contents:"
-            ls -R build/
-            exit 1
-          fi
-          echo "Found IPA at: $IPA_PATH"
-          echo "ipa_path=$IPA_PATH" >> $GITHUB_OUTPUT
+          # 可选：如果知道 Team ID，可以设置并取消注释下面一行
+          # TEAM_ID: ${{ secrets.TEAM_ID }}
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
         with:
           name: ios-app
-          path: ${{ steps.locate.outputs.ipa_path }}
+          path: ${{ steps.build.outputs.ipa_path }}
